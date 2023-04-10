@@ -4,7 +4,14 @@ import cats.implicits.*
 import cats.effect.implicits.*
 import org.http4s.server.Server
 
+import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.client.Client
+
+import scala.concurrent.duration.*
+
+
 import CanEqualInstances.given
+import org.http4s.ClientTypes
 
 object MyClass extends IOApp.Simple:
   import org.http4s
@@ -27,4 +34,19 @@ object MyClass extends IOApp.Simple:
           app
         )
         .build
-  def run = httpUtils[IO]().server.useForever
+
+  val serverResource = httpUtils[IO]().server
+  val clientResourse =  EmberClientBuilder.default[IO].build
+
+  val both = serverResource.both(clientResourse)
+
+  def printAndWait(client: Client[IO]) = (
+         (client.expect[String]("http://localhost:8080/hello/Ember") >>= IO.println)
+          *> IO.sleep(1.second)
+        ).foreverM
+
+  def run = for {
+    _ <- IO.println("Started")
+    _ <- both.use(x => printAndWait(x._2))
+  } yield ()
+
