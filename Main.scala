@@ -42,17 +42,29 @@ object MyClass extends IOApp.Simple:
   val serverResource = httpUtils[IO]().server
   val clientResourse =  EmberClientBuilder.default[IO].build
 
+  def run = for {
+      httpService <- Deferred[IO, Unit]
+      _ <- serverResource.useForeverAsService(httpService)
+      _ <- clientResourse.useWithService(httpService)(printAndWait)
+  } yield ()
+
 
 
   def printAndWait(client: Client[IO]): IO[Unit] = 
     def loop: IO[Unit] = for {
-         _ <- client.expect[String](s"http://localhost:${port}/hello/Ember") >>= IO.println
+         _ <- client.expect[String](s"http://localhost:${port}/hello/YP") >>= IO.println
          _ <- IO.sleep(1.second)
          _ <- loop
     } yield ()
     loop
 
-  val serverIO = serverResource.useForever
-  val clientIO = clientResourse.use(printAndWait)
-  def run = (serverIO, clientIO).parTupled.void
 
+  extension[A](r: Resource[IO,A])
+    def useForeverAsService(d: Deferred[IO, Unit]): IO[Unit] = for {
+        _ <- d.complete(())
+        _ <- r.useForever.start
+    } yield()
+    def useWithService[B](d: Deferred[IO, Unit])(uf: A => IO[B]): IO[B] = for {
+      _ <- d.get
+      res <- r.use(uf)
+    } yield res
