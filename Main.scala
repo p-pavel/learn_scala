@@ -60,7 +60,7 @@ object MyClass extends IOApp.Simple:
 
 
   extension[A](r: Resource[IO,A])
-    def useForeverAsService(d: Deferred[IO, Unit]): IO[Fiber[IO, Throwable, Nothing]] = for {
+    def useForeverAsService(d: Deferred[IO, Unit]): IO[FiberIO[Nothing]] = for {
         _ <- d.complete(())
         fiber <- r.useForever.start
     } yield fiber
